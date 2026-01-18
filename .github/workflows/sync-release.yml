@@ -1,46 +1,30 @@
-name: Sync Release (Create & Update) to Frontend Repo
+name: Sync Release and Deploy to Frontend
 
 on:
   release:
-    # 创建、发布、更新
     types: [created, published, edited]
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
-  sync-release:
-    if: github.repository == 'MarSeventh/CloudFlare-ImgBed'
+  sync-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Sync or Update Release
+      - name: Sync to Frontend Repo
         env:
           GH_TOKEN: ${{ secrets.RELEASE_SYNC_PAT }}
-          TARGET_REPO: "MarSeventh/Sanyue-ImgHub"
-          TAG_NAME: ${{ github.event.release.tag_name }}
-          RELEASE_TITLE: ${{ github.event.release.name }}
-          RELEASE_BODY: ${{ github.event.release.body }}
-          IS_DRAFT: ${{ github.event.release.draft }}
-          IS_PRERELEASE: ${{ github.event.release.prerelease }}
-
+          TARGET_REPO: "gl33332/Sanyue-ImgHub"
         run: |
-          # 格式化参数
-          ARGS=""
-          if [ "$IS_DRAFT" = "true" ]; then ARGS="$ARGS --draft"; else ARGS="$ARGS --draft=false"; fi
-          if [ "$IS_PRERELEASE" = "true" ]; then ARGS="$ARGS --prerelease"; else ARGS="$ARGS --prerelease=false"; fi
-
-          echo "正在检查目标仓库 $TARGET_REPO 中是否存在 Tag: $TAG_NAME..."
-
-          # 检查目标仓库是否已有该 Release
-          if gh release view "$TAG_NAME" --repo "$TARGET_REPO" > /dev/null 2>&1; then
-            echo "检测到现有 Release，正在执行更新操作..."
-            gh release edit "$TAG_NAME" \
-              --repo "$TARGET_REPO" \
-              --title "$RELEASE_TITLE" \
-              --notes "$RELEASE_BODY" \
-              $ARGS
-          else
-            echo "未发现现有 Release，正在创建新 Release..."
-            gh release create "$TAG_NAME" \
-              --repo "$TARGET_REPO" \
-              --title "$RELEASE_TITLE" \
-              --notes "$RELEASE_BODY" \
-              $ARGS
-          fi
+          echo "Triggering sync to $TARGET_REPO..."
+          # 这里的逻辑是直接通过 GitHub CLI 触发目标仓库的 Action 或更新文件
+          # 如果你只是想在 push 时也同步 Release，可以保留原来的 gh release 逻辑
+          # 如果目标是让博客更新，通常是触发目标仓库的 repository_dispatch
+          
+          curl -X POST -H "Authorization: token $GH_TOKEN" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/$TARGET_REPO/dispatches \
+               -d '{"event_type": "webhook_update"}'
+          
+          echo "Successfully dispatched update signal to $TARGET_REPO."
